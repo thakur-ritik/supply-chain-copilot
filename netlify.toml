@@ -1,0 +1,23 @@
+# netlify.toml — place this in the ROOT of your repo
+
+[build]
+  base    = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+# Redirect all routes to index.html for React SPA
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
+
+# Proxy /api calls to your backend (Render / Railway / etc.)
+# Replace the `to` URL with your actual deployed backend URL
+[[redirects]]
+  from   = "/api/*"
+  to     = "https://YOUR-BACKEND.onrender.com/api/:splat"
+  status = 200
+  force  = true
+
+[build.environment]
+  NODE_VERSION = "20"

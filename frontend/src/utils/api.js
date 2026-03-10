@@ -1,47 +1,35 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "";
-
-/**
- * Send a message to the Groq AI via the backend proxy.
- * @param {string}   userMessage
- * @param {string}   systemPrompt  – built from current dataset stats
- * @param {string}   [apiKey]      – optional user-supplied key (stored in localStorage)
- * @param {string[]} [history]     – previous {role, content} pairs for context
- * @returns {Promise<string>} AI reply text
- */
 export async function askGroq(userMessage, systemPrompt, apiKey = "", history = []) {
+  if (!apiKey) {
+    throw new Error("No API key set. Click ⚙ Settings and paste your Groq API key (free at console.groq.com/keys)");
+  }
+
   const messages = [
-    ...history.slice(-6),            // keep last 3 turns for context
+    ...history.slice(-6),
     { role: "user", content: userMessage },
   ];
 
-  const res = await fetch(`${BASE_URL}/api/chat`, {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
+    },
     body: JSON.stringify({
-      messages,
-      systemPrompt,
-      apiKey: apiKey || undefined,
-      model: "llama3-70b-8192",       // or mixtral-8x7b-32768, gemma2-9b-it
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: systemPrompt || "You are a helpful supply chain analyst." },
+        ...messages,
+      ],
+      max_tokens: 1024,
+      temperature: 0.4,
     }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `HTTP ${res.status}`);
+    throw new Error(err?.error?.message || `HTTP ${res.status}`);
   }
 
   const data = await res.json();
-  return data.reply;
-}
-
-/**
- * Check backend health and whether env key is configured.
- */
-export async function checkHealth() {
-  try {
-    const res = await fetch(`${BASE_URL}/api/health`);
-    return await res.json();
-  } catch {
-    return { status: "unreachable" };
-  }
+  return data.choices?.[0]?.message?.content || "No response generated.";
 }
